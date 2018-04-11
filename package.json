@@ -1,0 +1,26 @@
+{
+    "name": "hocon-colorizer",
+    "displayName": "HOCON Colorizer",
+    "description": "A VSCode Extension for Language Syntax Highlighting of HOCON",
+    "version": "0.0.1",
+    "publisher": "zzzz",
+    "engines": {
+        "vscode": "^1.0.0"
+    },
+    "categories": [
+        "Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "hocon",
+            "extensions": [".conf"],
+            "aliases": ["HOCON", "hocon"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "hocon",
+            "scopeName": "source.hocon",
+            "path": "./syntaxes/hocon.tmLanguage.json"
+        }]
+    }
+}

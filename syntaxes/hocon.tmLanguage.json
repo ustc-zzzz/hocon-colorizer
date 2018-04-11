@@ -1,0 +1,246 @@
+{
+  "fileTypes": ["conf"],
+  "name": "HOCON",
+  "patterns": [{
+    "include": "#list"
+  }, {
+    "include": "#object"
+  }, {
+    "include": "#field"
+  }, {
+    "include": "#hash-comment"
+  }, {
+    "include": "#slashes-comment"
+  }, {
+    "match": "([\\S])",
+    "name": "invalid.illegal.value.hocon"
+  }],
+  "repository": {
+    "hash-comment": {
+      "captures": {
+        "0": {
+          "name": "comment.line.number-sign.hocon"
+        }
+      },
+      "match": "(#.*$\\n?)"
+    },
+    "slashes-comment": {
+      "captures": {
+        "0": {
+          "name": "comment.line.double-slash.hocon"
+        }
+      },
+      "match": "(\\/\\/.*$\\n?)"
+    },
+    "list": {
+      "begin": "\\[",
+      "captures": {
+        "0": {
+          "name": "punctuation.definition.list.hocon"
+        }
+      },
+      "end": "\\]",
+      "name": "meta.structure.array.hocon",
+      "patterns": [{
+        "include": "#value"
+      }, {
+        "match": "(,)",
+        "name": "punctuation.separator.list.hocon"
+      }, {
+        "match": "([^\\s\\]])",
+        "name": "invalid.illegal.expected-list-separator.hocon"
+      }]
+    },
+    "object": {
+      "begin": "\\{",
+      "captures": {
+        "0": {
+          "name": "punctuation.definition.section.hocon"
+        }
+      },
+      "end": "\\}",
+      "patterns": [{
+        "include": "#field"
+      }, {
+        "match": "([^\\s\\}])",
+        "name": "invalid.illegal.expected-object-separator.hocon"
+      }]
+    },
+    "field": {
+      "patterns": [{
+        "include": "#inclusion"
+      }, {
+        "begin": "((?:\\+?=|:)|\\s*(?=\\{))",
+        "beginCaptures": {
+          "0": {
+            "name": "punctuation.separator.key-value.hocon"
+          }
+        },
+        "end": "(,)|(?=\\}|$\\n)",
+        "endCaptures": {
+          "0": {
+            "name": "punctuation.separator.field.hocon"
+          }
+        },
+        "patterns": [{
+          "include": "#value"
+        }]
+      }, {
+        "include": "#name"
+      }, {
+        "include": "#hash-comment"
+      }, {
+        "include": "#slashes-comment"
+      }]
+    },
+    "inclusion": {
+      "patterns": [{
+        "begin": "(?:^|\\s)(include\\s+required\\s*\\((?:url|file|classpath))\\s*\\(",
+        "beginCaptures": {
+          "1": {
+            "name": "keyword.other.include.hocon"
+          }
+        },
+        "end": "\\)\\s*\\)",
+        "patterns": [{
+          "include": "#string"
+        }]
+      }, {
+        "begin": "(?:^|\\s)(include\\s+(?:url|file|classpath|required))\\s*\\(",
+        "beginCaptures": {
+          "1": {
+            "name": "keyword.other.include.hocon"
+          }
+        },
+        "end": "\\)",
+        "patterns": [{
+          "include": "#string"
+        }]
+      }, {
+        "match": "(?:^|\\s)(include\\s+)(\\\"((\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4}))|[^\\\\\"])*?\\\")",
+        "captures": {
+          "1": {
+            "name": "keyword.other.include.hocon"
+          },
+          "2": {
+            "name": "string.quoted.double.hocon"
+          }
+        }
+      }]
+    },
+    "name": {
+      "match": "(([a-zA-Z_][a-zA-Z0-9_$\\.-]*)|\\\"((\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4}))|[^\\\\\"])*?\\\")",
+      "name": "support.variable.hocon"
+    },
+    "keyword": {
+      "match": "(?:^|\\s)(true|false|yes|no|on|off|null)(?=$|\\s)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.boolean.hocon"
+        }
+      }
+    },
+    "time-unit": {
+      "captures": {
+        "1": {
+          "name": "constant.numeric.time.hocon"
+        },
+        "2": {
+          "name": "keyword.other.time.unit.hocon"
+        }
+      },
+      "match": "(\\d+)\\s*(nanoseconds?|microseconds?|milliseconds?|seconds?|minutes?|hours?|days?|ns|us|ms|s|m|h|d)(?=$|\\s)"
+    },
+    "number": {
+      "match": "(-?(?:0|[1-9]\\d*)(?:(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)?)",
+      "name": "constant.numeric.hocon"
+    },
+    "substitution": {
+      "begin": "(\\$\\{\\??)",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.substitution.hocon"
+        }
+      },
+      "end": "(\\})",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.substitution.hocon"
+        }
+      },
+      "captures": {
+        "0": {
+          "name": "variable.parameter.substitution.hocon"
+        }
+      },
+      "patterns": [{
+        "match": "([a-zA-Z_][a-zA-Z0-9_$\\.-]*)",
+        "name": "variable.parameter.substitution.hocon"
+      }]
+    },
+    "multiline-string": {
+      "begin": "\"\"\"",
+      "captures": {
+        "0": {
+          "name": "punctuation.definition.string.hocon"
+        }
+      },
+      "end": "\"\"\"",
+      "name": "string.quoted.triple.hocon",
+      "patterns": [{
+        "match": "(\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4}))",
+        "name": "constant.character.escape.hocon"
+      }, {
+        "match": "\\\\.",
+        "name": "invalid.illegal.unrecognized-string-escape.hocon"
+      }]
+    },
+    "string": {
+      "begin": "\"",
+      "captures": {
+        "0": {
+          "name": "punctuation.definition.string.hocon"
+        }
+      },
+      "end": "\"",
+      "name": "string.quoted.double.hocon",
+      "patterns": [{
+        "match": "(\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4}))",
+        "name": "constant.character.escape.hocon"
+      }, {
+        "match": "\\\\.",
+        "name": "invalid.illegal.unrecognized-string-escape.hocon"
+      }]
+    },
+    "unquoted-string": {
+      "match": "[^\\s0-9$'{}\\[\\]:=,+#`^?!@*&-][^\\s$'{}\\[\\]:=,+#`^?!@*&]*",
+      "name": "string.unquoted.hocon"
+    },
+    "value": {
+      "patterns": [{
+        "include": "#list"
+      }, {
+        "include": "#object"
+      }, {
+        "include": "#keyword"
+      }, {
+        "include": "#time-unit"
+      }, {
+        "include": "#number"
+      }, {
+        "include": "#substitution"
+      }, {
+        "include": "#multiline-string"
+      }, {
+        "include": "#string"
+      }, {
+        "include": "#hash-comment"
+      }, {
+        "include": "#slashes-comment"
+      }, {
+        "include": "#unquoted-string"
+      }]
+    }
+  },
+  "scopeName": "source.hocon"
+}
