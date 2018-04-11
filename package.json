@@ -2,10 +2,14 @@
     "name": "hocon-colorizer",
     "displayName": "HOCON Colorizer",
     "description": "A VSCode Extension for Language Syntax Highlighting of HOCON",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "publisher": "zzzz",
     "engines": {
         "vscode": "^1.0.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ustc-zzzz/hocon-colorizer.git"
     },
     "categories": [
         "Languages"
