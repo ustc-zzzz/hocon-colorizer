@@ -129,8 +129,16 @@
       }]
     },
     "name": {
-      "match": "(([a-zA-Z_][a-zA-Z0-9_$\\.-]*)|\\\"((\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4}))|[^\\\\\"])*?\\\")",
-      "name": "support.variable.hocon"
+      "patterns": [{
+        "match": "[^\\s0-9$\"{}\\[\\]:=,+#`^?!@*&-.][^\\s$\"{}\\[\\]:=,+#`^?!@*&.]*",
+        "name": "support.variable.hocon"
+      }, {
+        "match": "\\\"((\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4}))|[^\\\\\"])*?\\\"",
+        "name": "support.variable.hocon"
+      }, {
+        "match": "(?<=[^\\s\\.])\\.(?=[^\\s\\.])",
+        "name": "punctuation.separator.key.hocon"
+      }]
     },
     "keyword": {
       "match": "(?:^|\\s)(true|false|yes|no|on|off|null)(?=$|\\s)",
@@ -213,7 +221,7 @@
       }]
     },
     "unquoted-string": {
-      "match": "[^\\s0-9$'{}\\[\\]:=,+#`^?!@*&-][^\\s$'{}\\[\\]:=,+#`^?!@*&]*",
+      "match": "[^\\s0-9$\"{}\\[\\]:=,+#`^?!@*&-][^\\s$\"{}\\[\\]:=,+#`^?!@*&]*",
       "name": "string.unquoted.hocon"
     },
     "value": {
