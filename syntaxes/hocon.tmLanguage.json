@@ -1,6 +1,8 @@
 {
   "fileTypes": ["conf"],
   "name": "HOCON",
+  "foldingStartMarker": "[{\\[]\\s*$",
+  "foldingStopMarker": "^\\s*[}\\]]",
   "patterns": [{
     "include": "#list"
   }, {
