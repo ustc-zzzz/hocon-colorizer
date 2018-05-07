@@ -2,7 +2,7 @@
     "name": "hocon-colorizer",
     "displayName": "HOCON Colorizer",
     "description": "Language Syntax Highlighting of HOCON",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "publisher": "zzzz",
     "engines": {
         "vscode": "^1.0.0"
@@ -14,17 +14,42 @@
     "categories": [
         "Languages"
     ],
+    "activationEvents": [
+        "onLanguage:hocon"
+    ],
+    "main": "./src/main/resources/hocon.extension.js",
     "contributes": {
-        "languages": [{
-            "id": "hocon",
-            "extensions": [".conf"],
-            "aliases": ["HOCON", "hocon"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "hocon",
-            "scopeName": "source.hocon",
-            "path": "./syntaxes/hocon.tmLanguage.json"
-        }]
+        "languages": [
+            {
+                "id": "hocon",
+                "extensions": [
+                    ".conf"
+                ],
+                "aliases": [
+                    "HOCON",
+                    "hocon"
+                ],
+                "configuration": "./src/main/resources/language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "hocon",
+                "scopeName": "source.hocon",
+                "path": "./src/main/resources/hocon.tmLanguage.json"
+            }
+        ]
+    },
+    "scripts": {
+        "build": "sbt fullOptJS",
+        "vscode:prepublish": "sbt fullOptJS",
+        "postinstall": "node ./node_modules/vscode/bin/install"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^4.1.0",
+        "vscode-languageserver": "^4.1.0"
+    },
+    "devDependencies": {
+        "vscode": "^1.1.14"
     }
 }
