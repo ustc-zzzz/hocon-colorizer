@@ -1,0 +1,13 @@
+**
+
+!LICENSE
+!README.md
+
+!node_modules/**
+
+!package.json
+!package-lock.json
+
+!src/main/resources/**
+!target/scala-2.11/hoconcolorizer-opt.js
+!target/scala-2.11/hoconcolorizer-opt.js.map
