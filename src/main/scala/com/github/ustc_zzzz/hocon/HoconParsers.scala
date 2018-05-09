@@ -5,6 +5,7 @@ import fastparse.all._
 /**
   * @author ustc_zzzz
   */
+// noinspection ForwardReference
 // noinspection SpellCheckingInspection
 object HoconParsers {
 
@@ -48,7 +49,7 @@ object HoconParsers {
     "\\" ~ (CharIn(strings = "\"\\\\/bfnrt") | unicode)
   }
   private val quotedChar: Parser[_] = P {
-    CharsWhile(c => c != '\"' && c != '\\') | escapeChar
+    CharsWhile(c => c != '\"' && c != '\\' && !c.isControl) | escapeChar
   }
   private val unquotedChar: Parser[_] = P {
     CharsWhile(c => !c.isWhitespace && !"$\"{}[]:=,+#`^?!@*&\\".contains(c))
@@ -150,23 +151,20 @@ object HoconParsers {
     (spacesCrossLines ~ (Index ~ values).map(ListElement.tupled).rep(sep = valueSeparator) ~ spacesCrossLines).map(_._2.toIndexedSeq)
   }
 
-  private def values: Parser[Concatenation] = P {
+  private val rootObjectValue: Parser[Object] = P {
+    (Index ~ fields ~ Index).map(Object.tupled)
+  }
+  private val listValue: Parser[List] = P {
+    (Index ~ "[" ~/ elements ~ "]" ~ Index).map(List.tupled)
+  }
+  private val objectValue: Parser[Object] = P {
+    (Index ~ "{" ~/ fields ~ "}" ~ Index).map(Object.tupled)
+  }
+  private val values: Parser[Concatenation] = P {
     substitutions | stringValues | listValues | objectValues
   }
 
-  private def rootObjectValue: Parser[Object] = P {
-    (Index ~ fields ~ Index).map(Object.tupled)
-  }
-
-  private def listValue: Parser[List] = P {
-    (Index ~ "[" ~/ elements ~ "]" ~ Index).map(List.tupled)
-  }
-
-  private def objectValue: Parser[Object] = P {
-    (Index ~ "{" ~/ fields ~ "}" ~ Index).map(Object.tupled)
-  }
-
-  def root: Parser[Element] = P {
+  lazy val root: Parser[Element] = P {
     (Start ~ spacesCrossLines ~ (objectValue | listValue | rootObjectValue) ~ spacesCrossLines ~ End).map(_._2)
   }
 }
