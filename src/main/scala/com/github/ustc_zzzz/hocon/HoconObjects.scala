@@ -47,26 +47,70 @@ object HoconObjects {
     override val values: IndexedSeq[Element] = path.values
   }
 
-  case class List(start: Int, elements: IndexedSeq[ListElement], end: Int) extends ElementCollection("List") {
-    override lazy val value: String = values.map(_.value).mkString("[", ", ", "]")
+  case class List(start: Int, elements: IndexedSeq[ListElementPart], end: Int) extends ElementCollection("List") {
+    override def toString: String = elements.map(element => s"${element.value}").mkString("[", ", ", "]")
 
-    override val values: IndexedSeq[Element] = elements.map(_.element)
+    override val values: IndexedSeq[Element] = elements.map(_.values.head)
 
-    override def offset(index: Int): Int = elements(index).offset
+    override lazy val value: String = elements.mkString("[", ", ", "]")
+
+    override def offset(index: Int): Int = elements(index).offset(0)
 
     override def size: Int = end - start
   }
 
-  case class Object(start: Int, elements: IndexedSeq[ObjectElement], end: Int) extends ElementCollection("Object") {
-    override def toString: String = elements.map(t => s"${t.path} -> ${t.element._2}").mkString("Object(", ", ", ")")
+  case class Object(start: Int, elements: IndexedSeq[ObjectElementPart], end: Int) extends ElementCollection("Object") {
+    override lazy val value: String = elements.map(_.value).mkString("{", ", ", "}")
 
-    override lazy val value: String = elements.map(t => s"${t.path}: ${t.element._2}").mkString("{", ", ", "}")
+    override def toString: String = elements.mkString("Object(", ", ", ")")
 
-    override def offset(i: Int): Int = if ((i & 1) > 0) elements(i / 2).element._1 else elements(i / 2).offset
+    override val values: IndexedSeq[Element] = elements.flatMap(_.values)
 
-    override val values: IndexedSeq[Element] = elements.flatMap(e => IndexedSeq(e.path, e.element._2))
+    override def offset(i: Int): Int = elements(i / 2).offset(i % 2)
 
     override def size: Int = end - start
+  }
+
+  case class ListElement(offset: Int, element: Element) extends ListElementPart {
+    override def values: IndexedSeq[Element] = IndexedSeq(element)
+
+    override def offset(index: Int): Int = offset
+  }
+
+  case class StringInclusion(offset: Int, element: QuotedString) extends InclusionElement(offset, element) {
+    override def toString: String = values.mkString("StringInclusion(", ", ", ")")
+
+    override lazy val value: String = s"include ${element.value}"
+  }
+
+  case class UrlInclusion(offset: Int, element: InclusionElement) extends InclusionElement(offset, element) {
+    override lazy val value: String = s"include url(${element.value.substring(8)})"
+
+    override def toString: String = values.mkString("UrlInclusion(", ", ", ")")
+  }
+
+  case class FileInclusion(offset: Int, element: InclusionElement) extends InclusionElement(offset, element) {
+    override lazy val value: String = s"include file(${element.value.substring(8)})"
+
+    override def toString: String = values.mkString("FileInclusion(", ", ", ")")
+  }
+
+  case class ClassPathInclusion(offset: Int, element: InclusionElement) extends InclusionElement(offset, element) {
+    override lazy val value: String = s"include classpath(${element.value.substring(8)})"
+
+    override def toString: String = values.mkString("ClassPathInclusion(", ", ", ")")
+  }
+
+  case class RequirementInclusion(offset: Int, element: InclusionElement) extends InclusionElement(offset, element) {
+    override lazy val value: String = s"include required(${element.value.substring(8)})"
+
+    override def toString: String = values.mkString("RequirementInclusion(", ", ", ")")
+  }
+
+  case class ObjectElement(offset: Int, fieldPath: PathExpression, fieldValue: (Int, Element)) extends ObjectElementPart {
+    override def values: IndexedSeq[Element] = IndexedSeq(fieldPath, fieldValue._2)
+
+    override def offset(i: Int): Int = if (i > 0) fieldValue._1 else offset
   }
 
   case class Concatenation(start: Int, head: Element, last: Seq[(Int, Element)], end: Int) extends ElementCollection("Concatenation") {
@@ -95,8 +139,24 @@ object HoconObjects {
     override def toString: String = values.mkString(name + "(", ", ", ")")
   }
 
-  case class ObjectElement(offset: Int, path: PathExpression, element: (Int, Element))
+  sealed abstract class ListElementPart extends ElementCollection("ListElementPart") {
+    override def toString: String = values.head.toString
 
-  case class ListElement(offset: Int, element: Element)
+    override lazy val value: String = values.head.value
+  }
+
+  sealed abstract class ObjectElementPart extends ElementCollection("ObjectElementPart") {
+    override lazy val value: String = s"${values.head.value}: ${values.last.value}"
+
+    override def toString: String = s"${values.head} -> ${values.last}"
+  }
+
+  sealed abstract class InclusionElement(offset: Int, element: Element) extends ObjectElementPart {
+    override def toString: String = values.mkString("InclusionElement(", ", ", ")")
+
+    override val values: IndexedSeq[Element] = IndexedSeq(element)
+
+    override def offset(i: Int): Int = offset
+  }
 
 }

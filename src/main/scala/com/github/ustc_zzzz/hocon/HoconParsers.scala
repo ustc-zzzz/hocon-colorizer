@@ -42,7 +42,7 @@ object HoconParsers {
   }
 
   private val valueSeparator: Parser[_] = P {
-    (comment.? ~ "\n" ~ spacesCrossLines.? ~ ",".? ~ spacesCrossLines) | ("," ~/ spacesCrossLines)
+    spaces.? ~ ((comment.? ~ "\n" ~ spacesCrossLines.? ~ ",".? ~ spacesCrossLines) | ("," ~/ spacesCrossLines))
   }
 
   private val escapeChar: Parser[_] = P {
@@ -105,30 +105,50 @@ object HoconParsers {
     ("${" ~ fieldPathExpression ~ "}").map(SubstitutionStrong)
   }
 
-  private val stringRepeatition: Parser[Seq[(Int, Element)]] = P {
+  private val stringRepetition: Parser[Seq[(Int, Element)]] = P {
     (Index ~ (substitutionOptional | substitution | stringOnlyValue)).rep
   }
-  private val valueRepeatition: Parser[Seq[(Int, Element)]] = P {
+  private val valueRepetition: Parser[Seq[(Int, Element)]] = P {
     (spaces.? ~ values.map(_.children)).map(_._2).?.map(_.getOrElse(Seq.empty))
   }
-  private val listRepeatition: Parser[Seq[(Int, Element)]] = P {
+  private val listRepetition: Parser[Seq[(Int, Element)]] = P {
     (spaces.? ~ (Index ~ (substitutionOptional | substitution | listValue))).map(_._2).rep
   }
-  private val objectRepeatition: Parser[Seq[(Int, Element)]] = P {
+  private val objectRepetition: Parser[Seq[(Int, Element)]] = P {
     (spaces.? ~ (Index ~ (substitutionOptional | substitution | objectValue))).map(_._2).rep
   }
 
   private val listValues: Parser[Concatenation] = P {
-    (Index ~ listValue ~ listRepeatition ~ Index).map(Concatenation.tupled)
+    (Index ~ listValue ~ listRepetition ~ Index).map(Concatenation.tupled)
   }
   private val objectValues: Parser[Concatenation] = P {
-    (Index ~ objectValue ~ objectRepeatition ~ Index).map(Concatenation.tupled)
+    (Index ~ objectValue ~ objectRepetition ~ Index).map(Concatenation.tupled)
   }
   private val stringValues: Parser[Concatenation] = P {
-    (Index ~ stringLikeValue ~ stringRepeatition ~ Index).map(Concatenation.tupled)
+    (Index ~ stringLikeValue ~ stringRepetition ~ Index).map(Concatenation.tupled)
   }
   private val substitutions: Parser[Concatenation] = P {
-    (Index ~ (substitutionOptional | substitution) ~ valueRepeatition ~ Index).map(Concatenation.tupled)
+    (Index ~ (substitutionOptional | substitution) ~ valueRepetition ~ Index).map(Concatenation.tupled)
+  }
+
+  private val stringInclusion: Parser[StringInclusion] = P {
+    (Index ~ quotedString).map(StringInclusion.tupled)
+  }
+  private val urlInclusion: Parser[UrlInclusion] = P {
+    (Index ~ "url(" ~/ spaces.? ~ stringInclusion ~ spaces.? ~ ")").map(t => UrlInclusion(t._1, t._3))
+  }
+  private val fileInclusion: Parser[FileInclusion] = P {
+    (Index ~ "file(" ~/ spaces.? ~ stringInclusion ~ spaces.? ~ ")").map(t => FileInclusion(t._1, t._3))
+  }
+  private val classPathInclusion: Parser[ClassPathInclusion] = P {
+    (Index ~ "classpath(" ~/ spaces.? ~ stringInclusion ~ spaces.? ~ ")").map(t => ClassPathInclusion(t._1, t._3))
+  }
+
+  private val optionalInclusion: Parser[InclusionElement] = P {
+    urlInclusion | fileInclusion | classPathInclusion | stringInclusion
+  }
+  private val requirementInclusion: Parser[RequirementInclusion] = P {
+    (Index ~ "required(" ~/ spaces.? ~ optionalInclusion ~ spaces.? ~ ")").map(t => RequirementInclusion(t._1, t._3))
   }
 
   private val fieldObjectValue: Parser[(Int, Concatenation)] = P {
@@ -140,14 +160,18 @@ object HoconParsers {
   private val fieldValue: Parser[(Int, Concatenation)] = P {
     (spacesCrossLines ~ CharIn(strings = ":=") ~/ spacesCrossLines ~ Index ~ values).map(t => (t._3, t._4))
   }
+
+  private val inclusion: Parser[InclusionElement] = P {
+    ("include" ~/ spaces ~ (optionalInclusion | requirementInclusion)).map(_._2)
+  }
   private val field: Parser[ObjectElement] = P {
     (Index ~ fieldPathExpression ~/ (fieldValue | fieldAppendValue | fieldObjectValue)).map(ObjectElement.tupled)
   }
 
-  private val fields: Parser[IndexedSeq[ObjectElement]] = P {
-    (spacesCrossLines ~ field.rep(sep = valueSeparator) ~ spacesCrossLines).map(_._2.toIndexedSeq)
+  private val fields: Parser[IndexedSeq[ObjectElementPart]] = P {
+    (spacesCrossLines ~ (inclusion | field).rep(sep = valueSeparator) ~ spacesCrossLines).map(_._2.toIndexedSeq)
   }
-  private val elements: Parser[IndexedSeq[ListElement]] = P {
+  private val elements: Parser[IndexedSeq[ListElementPart]] = P {
     (spacesCrossLines ~ (Index ~ values).map(ListElement.tupled).rep(sep = valueSeparator) ~ spacesCrossLines).map(_._2.toIndexedSeq)
   }
 
