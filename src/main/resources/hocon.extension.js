@@ -3,20 +3,24 @@
 const path = require('path')
 const vscode = require('vscode-languageclient')
 
-exports.activate = function activate (context) {
-  const fileName = 'hoconcolorizer-opt.js'
+/**
+  * @author ustc_zzzz
+  */
+ exports.activate = function activate (context) {
+  const runFileName = 'hoconcolorizer-opt.js'
+  const debugFileName = 'hoconcolorizer-fastopt.js'
 
-  const absolutePath = path.join('target', 'scala-2.11', fileName)
-  const serverModuleAbsolutePath = context.asAbsolutePath(absolutePath)
+  const runAbsolutePath = path.join('target', 'scala-2.11', runFileName)
+  const debugAbsolutePath = path.join('target', 'scala-2.11', debugFileName)
 
   const serverOptions = {
     run: {
-      module: serverModuleAbsolutePath,
-      transport: vscode.TransportKind.ipc
+      transport: vscode.TransportKind.ipc,
+      module: context.asAbsolutePath(runAbsolutePath)
     },
     debug: {
-      module: serverModuleAbsolutePath,
       transport: vscode.TransportKind.ipc,
+      module: context.asAbsolutePath(debugAbsolutePath),
       options: { execArgv: ['--nolazy', '--debug=6009'] }
     }
   }

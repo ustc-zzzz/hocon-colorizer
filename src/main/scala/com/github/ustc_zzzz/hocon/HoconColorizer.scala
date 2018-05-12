@@ -32,20 +32,13 @@ object HoconColorizer {
   }
 
   def main(): Unit = {
-    val connection = createConnection(new IPCMessageReader(process), new IPCMessageWriter(process))
     val documents = new TextDocuments()
+    val capabilities = Dictionary("textDocumentSync" -> documents.syncKind)
+    val connection = createConnection(new IPCMessageReader(process), new IPCMessageWriter(process))
+
     documents.listen(connection)
-
-    connection.onInitialize { params: Dynamic =>
-      Dictionary("capabilities" -> Dictionary(
-        "textDocumentSync" -> documents.syncKind,
-        "completionProvider" -> Dictionary("resolveProvider" -> true)
-      ))
-    }
-
-    documents.onDidChangeContent { change: Dynamic =>
-      validateTextDocument(connection, change.document)
-    }
+    connection.onInitialize((_: Dynamic) => Dictionary("capabilities" -> capabilities))
+    documents.onDidChangeContent((change: Dynamic) => validateTextDocument(connection, change.document))
 
     connection.listen()
   }
