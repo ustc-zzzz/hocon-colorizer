@@ -17,12 +17,15 @@ object HoconColorizer {
     val diagnostics = HoconParsers.root.parse(document) match {
       case Parsed.Success(_, _) => Array()
       case Parsed.Failure(_, index, extra) =>
-        val position = textDocument.positionAt(index)
+        val (startIndex, errorMessage) = HoconParsers.printError(extra.traced.stack.toIndexedSeq)
+        val startPosition = textDocument.positionAt(startIndex)
+        val endPosition = textDocument.positionAt(index)
         Array(Dictionary(
-          "severity" -> 1, // Error
-          "source" -> "HOCON Colorizer",
-          "range" -> Dictionary("start" -> position, "end" -> position),
-          "message" -> s"Expected ${extra.traced.traceParsers.mkString(" | ")}"
+          // Error
+          "severity" -> 1,
+          "source" -> "hocon",
+          "message" -> errorMessage,
+          "range" -> Dictionary("start" -> startPosition, "end" -> endPosition)
         ))
     }
     connection.sendDiagnostics(Dictionary("uri" -> textDocument.uri, "diagnostics" -> diagnostics))

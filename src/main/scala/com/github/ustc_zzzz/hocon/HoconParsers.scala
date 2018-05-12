@@ -11,6 +11,8 @@ object HoconParsers {
 
   import com.github.ustc_zzzz.hocon.HoconObjects._
 
+  import scala.language.existentials
+
   private val digits: Parser[_] = P {
     CharsWhileIn(strings = '0' to '9')
   }
@@ -38,11 +40,7 @@ object HoconParsers {
     ("//" | "#") ~ CharsWhile(_ != '\n', min = 0)
   }
   private val spacesCrossLines: Parser[_] = P {
-    (CharsWhile(c => c.isWhitespace) | comment).rep()
-  }
-
-  private val valueSeparator: Parser[_] = P {
-    spaces.? ~ ((comment.? ~ "\n" ~ spacesCrossLines.? ~ ",".? ~ spacesCrossLines) | ("," ~/ spacesCrossLines))
+    (CharsWhile(c => c.isWhitespace) | comment).rep
   }
 
   private val escapeChar: Parser[_] = P {
@@ -91,18 +89,15 @@ object HoconParsers {
   private val fieldPathElement: Parser[String] = P {
     (quotedString | unquotedString).map(_.value)
   }
-  private val fieldPathPart: Parser[PathExpressionPart] = P {
-    fieldPathElement.map(s => PathExpressionPart(s.mkString))
-  }
   private val fieldPathExpression: Parser[PathExpression] = P {
-    fieldPathPart.rep(min = 1, sep = P(".")).map(PathExpression)
+    fieldPathElement.map(PathExpressionPart).rep(min = 1, sep = P(".")).map(PathExpression)
   }
 
   private val substitutionOptional: Parser[SubstitutionWeak] = P {
-    ("${?" ~ fieldPathExpression ~ "}").map(SubstitutionWeak)
+    ("${?" ~/ fieldPathExpression ~ "}").map(SubstitutionWeak)
   }
   private val substitution: Parser[SubstitutionStrong] = P {
-    ("${" ~ fieldPathExpression ~ "}").map(SubstitutionStrong)
+    ("${" ~/ fieldPathExpression ~ "}").map(SubstitutionStrong)
   }
 
   private val stringRepetition: Parser[Seq[(Int, Element)]] = P {
@@ -119,16 +114,16 @@ object HoconParsers {
   }
 
   private val listValues: Parser[Concatenation] = P {
-    (Index ~ listValue ~ listRepetition ~ Index).map(Concatenation.tupled)
+    (Index ~ listValue ~/ listRepetition ~ Index).map(Concatenation.tupled)
   }
   private val objectValues: Parser[Concatenation] = P {
-    (Index ~ objectValue ~ objectRepetition ~ Index).map(Concatenation.tupled)
+    (Index ~ objectValue ~/ objectRepetition ~ Index).map(Concatenation.tupled)
   }
   private val stringValues: Parser[Concatenation] = P {
-    (Index ~ stringLikeValue ~ stringRepetition ~ Index).map(Concatenation.tupled)
+    (Index ~ stringLikeValue ~/ stringRepetition ~ Index).map(Concatenation.tupled)
   }
   private val substitutions: Parser[Concatenation] = P {
-    (Index ~ (substitutionOptional | substitution) ~ valueRepetition ~ Index).map(Concatenation.tupled)
+    (Index ~ (substitutionOptional | substitution) ~/ valueRepetition ~ Index).map(Concatenation.tupled)
   }
 
   private val stringInclusion: Parser[StringInclusion] = P {
@@ -168,6 +163,12 @@ object HoconParsers {
     (Index ~ fieldPathExpression ~/ (fieldValue | fieldAppendValue | fieldObjectValue)).map(ObjectElement.tupled)
   }
 
+  private val values: Parser[Concatenation] = P {
+    substitutions | stringValues | listValues | objectValues
+  }
+  private val valueSeparator: Parser[Any] = P {
+    spaces.? ~ ((comment.? ~ "\n" ~ spacesCrossLines ~ ",".? ~ spacesCrossLines) | ("," ~/ spacesCrossLines))
+  }
   private val fields: Parser[IndexedSeq[ObjectElementPart]] = P {
     (spacesCrossLines ~ (inclusion | field).rep(sep = valueSeparator) ~ spacesCrossLines).map(_._2.toIndexedSeq)
   }
@@ -184,11 +185,43 @@ object HoconParsers {
   private val objectValue: Parser[Object] = P {
     (Index ~ "{" ~/ fields ~ "}" ~ Index).map(Object.tupled)
   }
-  private val values: Parser[Concatenation] = P {
-    substitutions | stringValues | listValues | objectValues
+
+  def printError(stack: IndexedSeq[fastparse.core.Frame], pointer: Int = 1): (Int, String) = {
+    val fastparse.core.Frame(index, parser) = stack(stack.size - pointer)
+    parser match {
+      case `root` =>
+        (index, "Invalid root object syntax. Expecting an object, a list, or a field")
+      case `inclusion` =>
+        (index, "Invalid include syntax")
+      case `field` =>
+        (index, "Invalid object field syntax")
+      case `fieldPathExpression` =>
+        (index, "Invalid path expression syntax. Expecting a path expression for field key")
+      case `fieldPathElement` =>
+        (index, "Invalid path expression syntax. Expecting a quoted or unquoted string for path expression")
+      case `listValue` =>
+        (index, "Invalid list syntax. Expecting list elements")
+      case `objectValue` =>
+        (index, "Invalid object syntax. Expecting object fields")
+      case `values` =>
+        (index, "Invalid value syntax. Expecting a substitution, a string, a list, or an object")
+      case `stringOnlyValue` =>
+        (index, "Invalid string syntax. Expecting a multiline string, a quoted string, or an unquoted string")
+      case `stringLikeValue` =>
+        (index, "Invalid primitive value syntax. Expecting a null, a boolean, a time unit, a number, or a string")
+      case `valueRepetition` =>
+        (index, "Invalid value concatenation syntax. Expecting a substitution, a string, a list, an object, or nothing")
+      case `stringRepetition` =>
+        (index, "Invalid string concatenation syntax. Expecting a substitution, or a string")
+      case `listRepetition` =>
+        (index, "Invalid list concatenation syntax. Expecting a substitution, or a list")
+      case `objectRepetition` =>
+        (index, "Invalid object concatenation syntax. Expecting a substitution, or an object")
+      case _ => printError(stack, pointer + 1)
+    }
   }
 
-  lazy val root: Parser[Element] = P {
-    (Start ~ spacesCrossLines ~ (objectValue | listValue | rootObjectValue) ~ spacesCrossLines ~ End).map(_._2)
+  val root: Parser[Element] = P {
+    (Start ~ spacesCrossLines ~ (objectValue | listValue | rootObjectValue | Fail) ~ spacesCrossLines ~ End).map(_._2)
   }
 }
