@@ -88,11 +88,11 @@
           "include": "#value"
         }]
       }, {
-        "include": "#name"
-      }, {
         "include": "#hash-comment"
       }, {
         "include": "#slashes-comment"
+      }, {
+        "include": "#name"
       }]
     },
     "inclusion": {
