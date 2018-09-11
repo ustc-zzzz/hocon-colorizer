@@ -10,6 +10,18 @@ import scala.scalajs.js._
 object VSCodeLanguageServer extends Object {
 
   @native
+  object TextEdit extends Object {
+    def insert(position: Any, newText: Any): TextEdit = native
+
+    def replace(range: Any, newText: Any): TextEdit = native
+
+    def del(range: Any): TextEdit = native
+  }
+
+  @native
+  class TextEdit(range: Any, newText: Any) extends Object
+
+  @native
   class IPCMessageReader(process: Any) extends Object
 
   @native

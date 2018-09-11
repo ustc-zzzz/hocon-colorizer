@@ -1,12 +1,12 @@
 'use strict'
 
 const path = require('path')
-const vscode = require('vscode-languageclient')
+const {TransportKind, LanguageClient} = require('vscode-languageclient')
 
 /**
-  * @author ustc_zzzz
-  */
- exports.activate = function activate (context) {
+ * @author ustc_zzzz
+ */
+exports.activate = function activate (context) {
   const runFileName = 'hoconcolorizer-opt.js'
   const debugFileName = 'hoconcolorizer-fastopt.js'
 
@@ -15,13 +15,12 @@ const vscode = require('vscode-languageclient')
 
   const serverOptions = {
     run: {
-      transport: vscode.TransportKind.ipc,
+      transport: TransportKind.ipc,
       module: context.asAbsolutePath(runAbsolutePath)
     },
     debug: {
-      transport: vscode.TransportKind.ipc,
-      module: context.asAbsolutePath(debugAbsolutePath),
-      options: { execArgv: ['--nolazy', '--debug=6009'] }
+      transport: TransportKind.ipc,
+      module: context.asAbsolutePath(debugAbsolutePath)
     }
   }
   const clientOptions = {
@@ -29,7 +28,7 @@ const vscode = require('vscode-languageclient')
   }
 
   const name = 'HOCON Language Server'
-  const client = new vscode.LanguageClient(name, serverOptions, clientOptions)
+  const client = new LanguageClient(name, serverOptions, clientOptions)
 
   context.subscriptions.push(client.start())
 }
