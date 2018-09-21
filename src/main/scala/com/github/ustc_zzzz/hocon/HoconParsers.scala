@@ -168,7 +168,7 @@ object HoconParsers {
   }
 
   private val inclusion: Parser[Inclusion] = P {
-    ("include" ~/ spaces ~ (optionalInclusion | requirementInclusion)).map(Inclusion.tupled)
+    ("include" ~ spaces ~/ (optionalInclusion | requirementInclusion)).map(Inclusion.tupled)
   }
   private val field: Parser[ObjectElement] = P {
     (fieldPathExpression ~/ (fieldValue | fieldAppendValue | fieldObjectValue)).map(ObjectElement.tupled)
