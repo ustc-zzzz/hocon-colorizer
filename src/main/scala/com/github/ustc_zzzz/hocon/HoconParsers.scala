@@ -44,7 +44,7 @@ object HoconParsers {
     CharsWhile(c => c != '\"' && c != '\\' && !c.isControl) | escapeChar
   }
   private val unquotedChar: Parser[_] = P {
-    CharsWhile(c => !c.isWhitespace && !"$\"{}[]:=,+#`^?!@*&\\".contains(c))
+    CharsWhile(c => !c.isWhitespace && !"$\"{}[]:=,+#`^?!@*&\\/".contains(c))
   }
   private val rawStringChar: Parser[_] = P {
     CharsWhile(_ != '\"').~/ | "\"" ~ (CharsWhile(_ != '\"').~/ | "\"" ~ CharsWhile(_ != '\"').~/)
@@ -62,7 +62,7 @@ object HoconParsers {
     (("//" | "#").! ~ spaces.? ~ CharsWhile(_ != '\n', min = 0).!).map(Comment.tupled).opaque("Comment")
   }
   private val spacesMultiline: Parser[SpacesMultiline] = P {
-    ((spaces.? ~ Index ~ comment.? ~ "\n").rep(min = 1) ~ spaces.? ~ Index).map(s => SpacesMultiline(s._1 :+ (s._2, s._3, None))).opaque("Spaces")
+    ((spaces.? ~ Index ~ comment.? ~ ("\n" | End)).rep(min = 1) ~ spaces.? ~ Index).map(s => SpacesMultiline(s._1 :+ (s._2, s._3, None))).opaque("Spaces")
   }
   private val spacesMultilineOption: Parser[SpacesMultiline] = P {
     spacesMultiline | spacesOption
@@ -81,11 +81,11 @@ object HoconParsers {
     (numeric ~ spaces.rep ~ (timeUnitSuffix | timeUnitSuffixAbbr)).!.map(TimeUnit).opaque("TimeUnit")
   }
 
-  private val unquotedString: Parser[UnquotedString] = P {
-    unquotedChar.rep(min = 1).!.map(UnquotedString).opaque("UnquotedString")
-  }
   private val quotedString: Parser[QuotedString] = P {
     ("\"" ~/ quotedChar.rep ~ "\"").!.map(QuotedString).opaque("QuotedString")
+  }
+  private val unquotedString: Parser[UnquotedString] = P {
+    (unquotedChar | "/" ~ !"/").rep(min = 1).!.map(UnquotedString).opaque("UnquotedString")
   }
   private val rawString: Parser[MultilineString] = P {
     ("\"\"\"" ~/ rawStringChar.rep ~ "\"".rep(min = 3)).!.map(MultilineString).opaque("MultilineString")
