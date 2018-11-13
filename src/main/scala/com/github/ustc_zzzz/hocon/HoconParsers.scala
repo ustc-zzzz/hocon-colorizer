@@ -55,17 +55,25 @@ object HoconParsers {
   private val spaces: Parser[Spaces] = P {
     (Index ~ blank.! ~ Index).map(Spaces.tupled).opaque("Spaces")
   }
-  private val spacesOption: Parser[SpacesMultiline] = P {
-    (spaces.? ~ Index).map(s => SpacesMultiline(Seq((s._1, s._2, None)))).opaque("Spaces")
-  }
   private val comment: Parser[Comment] = P {
     (("//" | "#").! ~ spaces.? ~ CharsWhile(_ != '\n', min = 0).!).map(Comment.tupled).opaque("Comment")
   }
-  private val spacesMultiline: Parser[SpacesMultiline] = P {
-    ((spaces.? ~ Index ~ comment.? ~ ("\n" | End)).rep(min = 1) ~ spaces.? ~ Index).map(s => SpacesMultiline(s._1 :+ (s._2, s._3, None))).opaque("Spaces")
+
+  private val spacesSingleLine: Parser[(Option[Spaces], Int, Option[Comment])] = P {
+    (spaces.? ~ Index).map(s => (s._1, s._2, None)).opaque("Spaces")
   }
-  private val spacesMultilineOption: Parser[SpacesMultiline] = P {
-    spacesMultiline | spacesOption
+  private val spacesSingleLineEnd: Parser[(Option[Spaces], Int, Option[Comment])] = P {
+    (spaces.? ~ Index ~ comment.?).opaque("Spaces")
+  }
+  private val spacesSingleLineWithLineBreak: Parser[(Option[Spaces], Int, Option[Comment])] = P {
+    (spaces.? ~ Index ~ comment.? ~ "\n").opaque("Spaces")
+  }
+
+  private val spacesMultiLine: Parser[SpacesMultiline] = P {
+    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLine).map(s => SpacesMultiline(s._1 :+ s._2)).opaque("Spaces")
+  }
+  private val spacesMultiLineEnd: Parser[SpacesMultiline] = P {
+    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLineEnd).map(s => SpacesMultiline(s._1 :+ s._2)).opaque("Spaces")
   }
 
   private val nullPointerValue: Parser[NullPointer] = P {
@@ -158,13 +166,13 @@ object HoconParsers {
   }
 
   private val fieldObjectValue: Parser[(SepWithSpaces, Concat)] = P {
-    (spacesMultilineOption ~ objectValues).map(t => (SepWithSpaces(t._1, None), t._2))
+    (spacesMultiLine ~ objectValues).map(t => (SepWithSpaces(t._1, None), t._2))
   }
   private val fieldAppendValue: Parser[(SepWithSpaces, Concat)] = P {
-    (spacesMultilineOption ~ "+=".!.map(Sep) ~/ spacesMultilineOption ~ values).map(t => (SepWithSpaces(t._1, Some(t._2, t._3)), t._4))
+    (spacesMultiLine ~ "+=".!.map(Sep) ~/ spacesMultiLine ~ values).map(t => (SepWithSpaces(t._1, Some(t._2, t._3)), t._4))
   }
   private val fieldValue: Parser[(SepWithSpaces, Concat)] = P {
-    (spacesMultilineOption ~ CharIn(":=").!.map(Sep) ~/ spacesMultilineOption ~ values).map(t => (SepWithSpaces(t._1, Some(t._2, t._3)), t._4))
+    (spacesMultiLine ~ CharIn(":=").!.map(Sep) ~/ spacesMultiLine ~ values).map(t => (SepWithSpaces(t._1, Some(t._2, t._3)), t._4))
   }
 
   private val inclusion: Parser[Inclusion] = P {
@@ -178,20 +186,20 @@ object HoconParsers {
     substitutions | stringValues | listValues | objectValues
   }
   private val valueSeparator: Parser[SepWithSpaces] = P {
-    valueSeparatorRequired | spacesMultilineOption.map(SepWithSpaces(_, None))
+    valueSeparatorRequired | spacesMultiLine.map(SepWithSpaces(_, None))
   }
   private val valueSeparatorLast: Parser[SepWithSpaces] = P {
-    valueSeparatorRequired | spacesMultilineOption.map(SepWithSpaces(_, None))
+    valueSeparatorRequired | spacesMultiLine.map(SepWithSpaces(_, None))
   }
   private val valueSeparatorRequired: Parser[SepWithSpaces] = P {
-    (spacesMultilineOption ~ ("," ~ spacesMultilineOption).map(Some(Sep(","), _))).map(SepWithSpaces.tupled)
+    (spacesMultiLine ~ ("," ~ spacesMultiLine).map(Some(Sep(","), _))).map(SepWithSpaces.tupled)
   }
 
   private val fields: Parser[(SpacesMultiline, Option[(ObjectElementPart, Seq[(SepWithSpaces, ObjectElementPart)], SepWithSpaces)])] = P {
-    spacesMultilineOption ~/ ((inclusion | field) ~ (valueSeparator ~ (inclusion | field)).rep ~ valueSeparatorLast).?
+    spacesMultiLine ~/ ((inclusion | field) ~ (valueSeparator ~ (inclusion | field)).rep ~ valueSeparatorLast).?
   }
   private val elements: Parser[(SpacesMultiline, Option[(ListElementPart, Seq[(SepWithSpaces, ListElementPart)], SepWithSpaces)])] = P {
-    spacesMultilineOption ~/ (values.map(ListElement) ~ (valueSeparator ~ values.map(ListElement)).rep ~ valueSeparatorLast).?
+    spacesMultiLine ~/ (values.map(ListElement) ~ (valueSeparator ~ values.map(ListElement)).rep ~ valueSeparatorLast).?
   }
 
   private val rootObjectValue: Parser[RootObject] = P {
@@ -240,6 +248,6 @@ object HoconParsers {
   }
 
   val root: Parser[Root] = P {
-    (Start ~ spacesMultilineOption ~ (objectValue | listValue | rootObjectValue | Fail) ~ spacesMultilineOption ~ End).map(Root.tupled)
+    (Start ~ spacesMultiLine ~ (objectValue | listValue | rootObjectValue | Fail) ~ spacesMultiLineEnd ~ End).map(Root.tupled)
   }
 }
