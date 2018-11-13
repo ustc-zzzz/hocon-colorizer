@@ -195,21 +195,21 @@ object HoconParsers {
     (spacesMultiLine ~ ("," ~ spacesMultiLine).map(Some(Sep(","), _))).map(SepWithSpaces.tupled)
   }
 
-  private val fields: Parser[(SpacesMultiline, Option[(ObjectElementPart, Seq[(SepWithSpaces, ObjectElementPart)], SepWithSpaces)])] = P {
-    spacesMultiLine ~/ ((inclusion | field) ~ (valueSeparator ~ (inclusion | field)).rep ~ valueSeparatorLast).?
+  private val moreFields: Parser[Seq[(ObjectElementPart, SepWithSpaces)]] = P {
+    ((inclusion | field) ~ (valueSeparator ~ moreFields | valueSeparatorLast.map((_, Nil)))).map(t => (t._1, t._2._1) +: t._2._2)
   }
-  private val elements: Parser[(SpacesMultiline, Option[(ListElementPart, Seq[(SepWithSpaces, ListElementPart)], SepWithSpaces)])] = P {
-    spacesMultiLine ~/ (values.map(ListElement) ~ (valueSeparator ~ values.map(ListElement)).rep ~ valueSeparatorLast).?
+  private val moreElements: Parser[Seq[(ListElementPart, SepWithSpaces)]] = P {
+    (values.map(ListElement) ~ (valueSeparator ~ moreElements | valueSeparatorLast.map((_, Nil)))).map(t => (t._1, t._2._1) +: t._2._2)
   }
 
   private val rootObjectValue: Parser[RootObject] = P {
-    fields.map(RootObject.tupled)
+    (spacesMultiLine ~/ moreFields.?.map(_.getOrElse(Nil))).map(RootObject.tupled)
   }
   private val listValue: Parser[List] = P {
-    ("[" ~/ elements ~ "]").map(List.tupled)
+    ("[" ~/ spacesMultiLine ~/ moreElements.?.map(_.getOrElse(Nil)) ~ "]").map(List.tupled)
   }
   private val objectValue: Parser[Object] = P {
-    ("{" ~/ fields ~ "}").map(Object.tupled)
+    ("{" ~/ spacesMultiLine ~/ moreFields.?.map(_.getOrElse(Nil)) ~ "}").map(Object.tupled)
   }
 
   @tailrec def printError(stack: IndexedSeq[fastparse.core.Frame], pointer: Int = 1): (Int, String) = {

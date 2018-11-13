@@ -20,36 +20,32 @@ object HoconFormatter {
       formatSpaces(end, indent, options)
     case RootObject(start, elements) =>
       formatSpaces(start, indent + 1, options)
-      for ((head, tail, end) <- elements) {
-        format(head, options, indent + 1)
-        for ((SepWithSpaces(prefix, suffix), part) <- tail) {
-          formatSpaces(prefix, suffix, indent + 1, options, "")
-          format(part, options, indent + 1)
-        }
-        format(end, options, indent)
+      for ((part, SepWithSpaces(prefix, suffix)) <- elements) {
+        formatSpaces(prefix, suffix, indent + 1, options, "")
+        format(part, options, indent + 1)
       }
     case Object(start, elements) =>
       var diff = 0
-      if (formatSpaces(start, indent + 1, options)) diff = 1
-      for ((head, tail, end) <- elements) {
-        format(head, options, indent + diff)
-        for ((SepWithSpaces(prefix, suffix), part) <- tail) {
-          if (formatSpaces(prefix, suffix, indent + 1, options, "")) diff = 1
-          format(part, options, indent + diff)
-        }
-        format(end, options, indent)
+      var headPrefix = start
+      var headSuffix = Option.empty[(Sep, SpacesMultiline)]
+      for ((part, SepWithSpaces(prefix, suffix)) <- elements) {
+        if (formatSpaces(headPrefix, headSuffix, indent + 1, options, "")) diff = 1
+        format(part, options, indent + diff)
+        headPrefix = prefix
+        headSuffix = suffix
       }
+      formatSpaces(headPrefix, headSuffix, indent, options, "")
     case List(start, elements) =>
       var diff = 0
-      if (formatSpaces(start, indent + 1, options)) diff = 1
-      for ((head, tail, end) <- elements) {
-        format(head, options, indent + diff)
-        for ((SepWithSpaces(prefix, suffix), part) <- tail) {
-          if (formatSpaces(prefix, suffix, indent + 1, options, "")) diff = 1
-          format(part, options, indent + diff)
-        }
-        format(end, options, indent)
+      var headPrefix = start
+      var headSuffix = Option.empty[(Sep, SpacesMultiline)]
+      for ((part, SepWithSpaces(prefix, suffix)) <- elements) {
+        if (formatSpaces(headPrefix, headSuffix, indent + 1, options, "")) diff = 1
+        format(part, options, indent + diff)
+        headPrefix = prefix
+        headSuffix = suffix
       }
+      formatSpaces(headPrefix, headSuffix, indent, options, "")
     case ObjectElement(_, (SepWithSpaces(prefix, suffix), value)) =>
       formatSpaces(prefix, suffix, indent, options, " ")
       format(value, options, indent)

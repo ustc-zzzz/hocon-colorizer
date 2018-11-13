@@ -74,22 +74,22 @@ object HoconObjects {
     override val values: IndexedSeq[Element] = elements.toIndexedSeq
   }
 
-  case class List(start: SpacesMultiline, elements: Option[(ListElementPart, Seq[(SepWithSpaces, ListElementPart)], SepWithSpaces)]) extends ElementCollection("List") {
+  case class List(start: SpacesMultiline, elements: Seq[(ListElementPart, SepWithSpaces)]) extends ElementCollection("List") {
     override lazy val value: String = "[" + values.map(_.value).mkString + "]"
 
-    override val values: IndexedSeq[Element] = start +: elements.toIndexedSeq.flatMap(t => t._1 +: t._2.flatMap(t => Seq(t._1, t._2)) :+ t._3)
+    override val values: IndexedSeq[Element] = (start +: elements.flatMap(t => t._1 :: t._2 :: Nil)).toIndexedSeq
   }
 
-  case class Object(start: SpacesMultiline, elements: Option[(ObjectElementPart, Seq[(SepWithSpaces, ObjectElementPart)], SepWithSpaces)]) extends ElementCollection("Object") {
+  case class Object(start: SpacesMultiline, elements: Seq[(ObjectElementPart, SepWithSpaces)]) extends ElementCollection("Object") {
     override lazy val value: String = "{" + values.map(_.value).mkString + "}"
 
-    override val values: IndexedSeq[Element] = start +: elements.toIndexedSeq.flatMap(t => t._1 +: t._2.flatMap(t => Seq(t._1, t._2)) :+ t._3)
+    override val values: IndexedSeq[Element] = (start +: elements.flatMap(t => t._1 :: t._2 :: Nil)).toIndexedSeq
   }
 
-  case class RootObject(start: SpacesMultiline, elements: Option[(ObjectElementPart, Seq[(SepWithSpaces, ObjectElementPart)], SepWithSpaces)]) extends ElementCollection("RootObject") {
+  case class RootObject(start: SpacesMultiline, elements: Seq[(ObjectElementPart, SepWithSpaces)]) extends ElementCollection("RootObject") {
     override lazy val value: String = values.map(_.value).mkString
 
-    override val values: IndexedSeq[Element] = start +: elements.toIndexedSeq.flatMap(t => t._1 +: t._2.flatMap(t => Seq(t._1, t._2)) :+ t._3)
+    override val values: IndexedSeq[Element] = (start +: elements.flatMap(t => t._1 :: t._2 :: Nil)).toIndexedSeq
   }
 
   case class ObjectElement(fieldPath: PathExpression, fieldValue: (SepWithSpaces, Concat)) extends ObjectElementPart {
