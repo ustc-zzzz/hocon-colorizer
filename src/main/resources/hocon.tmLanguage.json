@@ -24,7 +24,7 @@
           "name": "comment.line.number-sign.hocon"
         }
       },
-      "match": "(#.*$\\n?)"
+      "match": "(#.*$)"
     },
     "slashes-comment": {
       "captures": {
@@ -32,7 +32,7 @@
           "name": "comment.line.double-slash.hocon"
         }
       },
-      "match": "(\\/\\/.*$\\n?)"
+      "match": "(\\/\\/.*$)"
     },
     "list": {
       "begin": "\\[",
