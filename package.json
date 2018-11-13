@@ -2,7 +2,7 @@
     "name": "hocon-colorizer",
     "displayName": "HOCON Colorizer",
     "description": "Language Syntax Highlighting of HOCON",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "publisher": "zzzz",
     "engines": {
         "vscode": "^1.0.0"
@@ -46,10 +46,10 @@
         "postinstall": "node ./node_modules/vscode/bin/install"
     },
     "dependencies": {
-        "vscode-languageclient": "^4.4.2",
-        "vscode-languageserver": "^4.4.2"
+        "vscode-languageclient": "^5.1",
+        "vscode-languageserver": "^5.1"
     },
     "devDependencies": {
-        "vscode": "^1.1.21"
+        "vscode": "^1.1"
     }
 }
