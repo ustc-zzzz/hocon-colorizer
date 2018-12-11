@@ -27,7 +27,7 @@ object HoconFormatter {
     case Object(start, elements) =>
       var diff = 0
       var headPrefix = start
-      var headSuffix = Option.empty[(Sep, SpacesMultiline)]
+      var headSuffix = Option.empty[(Sep, SpacesMultiLine)]
       for ((part, SepWithSpaces(prefix, suffix)) <- elements) {
         if (formatSpaces(headPrefix, headSuffix, indent + 1, options, "")) diff = 1
         format(part, options, indent + diff)
@@ -38,7 +38,7 @@ object HoconFormatter {
     case List(start, elements) =>
       var diff = 0
       var headPrefix = start
-      var headSuffix = Option.empty[(Sep, SpacesMultiline)]
+      var headSuffix = Option.empty[(Sep, SpacesMultiLine)]
       for ((part, SepWithSpaces(prefix, suffix)) <- elements) {
         if (formatSpaces(headPrefix, headSuffix, indent + 1, options, "")) diff = 1
         format(part, options, indent + diff)
@@ -70,7 +70,7 @@ object HoconFormatter {
     case _ => ()
   }
 
-  private def formatSpaces(start: SpacesMultiline, suffix: Option[(Sep, SpacesMultiline)], indent: Int,
+  private def formatSpaces(start: SpacesMultiLine, suffix: Option[(Sep, SpacesMultiLine)], indent: Int,
                            options: IndentOptions, spaces: String): scala.Boolean = (suffix: @unchecked) match {
     case None =>
       formatSpaces(start, indent, options, headSpaces = spaces)
@@ -85,12 +85,12 @@ object HoconFormatter {
     // other cases should not occur
   }
 
-  private def formatSpaces(spaces: SpacesMultiline, indent: Int, options: IndentOptions,
+  private def formatSpaces(spaces: SpacesMultiLine, indent: Int, options: IndentOptions,
                            headSpaces: String = "", headSpacesMultiline: String = " "): scala.Boolean = spaces match {
-    case SpacesMultiline(Seq(head)) =>
+    case SpacesMultiLine(Seq(head)) =>
       formatSpaces(head, options.builder, (headSpaces, headSpaces), options.posAt)
       false // subsequent elements should not be indented
-    case SpacesMultiline(seq) if seq.nonEmpty =>
+    case SpacesMultiLine(seq) if seq.nonEmpty =>
       val tailSpaces = options.tabSpace * indent
       formatSpaces(seq.head, options.builder, ("", headSpacesMultiline), options.posAt)
       seq.tail.foreach(formatSpaces(_, options.builder, (tailSpaces, tailSpaces), options.posAt))
@@ -105,20 +105,19 @@ object HoconFormatter {
     }
   }
 
-  private def formatSpaces(spaces: (Option[Spaces], Int, Option[Comment]), builder: Array[TextEdit],
+  private def formatSpaces(spaces: SpacesSingleLine, builder: Array[TextEdit],
                            spacesBeforeComment: (String, String), posAt: Int => Dynamic): Unit = spaces match {
-    case (None, i, None) => builder.push(TextEdit.insert(posAt(i), spacesBeforeComment._1))
-    case (Some(s), _, None) => formatSpaces(s, builder, posAt, spacesBeforeComment._1)
-    case (o, i, Some(c)) =>
+    case SpacesSingleLine(None, i, None) => builder.push(TextEdit.insert(posAt(i), spacesBeforeComment._1))
+    case SpacesSingleLine(Some(s), _, None) => formatSpaces(s, builder, posAt, spacesBeforeComment._1)
+    case SpacesSingleLine(o, i, Some(c)) =>
       o match {
         case None => builder.push(TextEdit.insert(posAt(i), spacesBeforeComment._2))
         case Some(s) => formatSpaces(s, builder, posAt, spacesBeforeComment._2)
       }
       c match {
-        case Comment(p, None, _) => builder.push(TextEdit.insert(posAt(i + p.length), " "))
-        case Comment(_, Some(Spaces(start, value, end)), _) => if (value != " ") {
-          val range = Dictionary("start" -> posAt(start), "end" -> posAt(end))
-          builder.push(TextEdit.replace(range, " "))
+        case Comment(prefix, _, value, end, _) => if (value != " ") {
+          val range = Dictionary("start" -> posAt(i), "end" -> posAt(end))
+          builder.push(TextEdit.replace(range, prefix + " "))
         }
       }
   }

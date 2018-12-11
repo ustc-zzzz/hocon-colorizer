@@ -11,93 +11,8 @@ import scala.annotation.tailrec
 // noinspection ForwardReference
 object HoconParsers {
 
+  import com.github.ustc_zzzz.hocon.HoconTokens._
   import com.github.ustc_zzzz.hocon.HoconObjects._
-
-  // token parts
-
-  private val digits: Parser[_] = P(CharsWhileIn(strings = '0' to '9'))
-
-  private val numeric: Parser[_] = P("0" | (CharIn(strings = '1' to '9') ~ digits.?))
-
-  private val exponent: Parser[_] = P(CharIn(strings = "eE") ~ CharIn(strings = "+-").? ~ digits)
-
-  private val unicode: Parser[_] = P("u" ~ CharIn(strings = '0' to '9', 'a' to 'f', 'A' to 'F').rep(exactly = 4))
-
-  private val blank: Parser[_] = P(CharsWhile {
-    case '\n' => false // special handling for line breaks
-    case ' ' | '\t' | '\uFEFF' => true // common whitespaces and utf-8 bom
-    case '\u00A0' | '\u2007' | '\u202F' => true // characters mentioned in the spec
-    case character => character.isWhitespace // use java.lang.Character in other cases
-  })
-
-  private val timeUnitSuffixAbbr: Parser[_] = P {
-    "ns" | "us" | "ms" | "s" | "m" | "h" | "d"
-  }
-  private val timeUnitSuffix: Parser[_] = P {
-    ("nanosecond" | "microsecond" | "millisecond" | "second" | "minute" | "hour" | "day") ~ "s".?
-  }
-
-  private val escapeChar: Parser[_] = P {
-    "\\" ~ (CharIn(Seq('\"', '\\', '/', 'b', 'f', 'n', 'r', 't')) | unicode)
-  }
-  private val quotedChar: Parser[_] = P {
-    CharsWhile(c => c != '\"' && c != '\\' && !c.isControl) | escapeChar
-  }
-  private val unquotedChar: Parser[_] = P {
-    CharsWhile(c => !c.isWhitespace && !"$\"{}[]:=,+#`^?!@*&\\/".contains(c))
-  }
-  private val rawStringChar: Parser[_] = P {
-    CharsWhile(_ != '\"').~/ | "\"" ~ (CharsWhile(_ != '\"').~/ | "\"" ~ CharsWhile(_ != '\"').~/)
-  }
-
-  // tokens
-
-  private val spaces: Parser[Spaces] = P {
-    (Index ~ blank.! ~ Index).map(Spaces.tupled).opaque("Spaces")
-  }
-  private val comment: Parser[Comment] = P {
-    (("//" | "#").! ~ spaces.? ~ CharsWhile(_ != '\n', min = 0).!).map(Comment.tupled).opaque("Comment")
-  }
-
-  private val spacesSingleLine: Parser[(Option[Spaces], Int, Option[Comment])] = P {
-    (spaces.? ~ Index).map(s => (s._1, s._2, None)).opaque("Spaces")
-  }
-  private val spacesSingleLineEnd: Parser[(Option[Spaces], Int, Option[Comment])] = P {
-    (spaces.? ~ Index ~ comment.?).opaque("Spaces")
-  }
-  private val spacesSingleLineWithLineBreak: Parser[(Option[Spaces], Int, Option[Comment])] = P {
-    (spaces.? ~ Index ~ comment.? ~ "\n").opaque("Spaces")
-  }
-
-  private val spacesMultiLine: Parser[SpacesMultiline] = P {
-    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLine).map(s => SpacesMultiline(s._1 :+ s._2)).opaque("Spaces")
-  }
-  private val spacesMultiLineEnd: Parser[SpacesMultiline] = P {
-    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLineEnd).map(s => SpacesMultiline(s._1 :+ s._2)).opaque("Spaces")
-  }
-
-  private val nullPointerValue: Parser[NullPointer] = P {
-    "null".!.map(NullPointer).opaque("Null")
-  }
-  private val boolean: Parser[Boolean] = P {
-    ("true" | "false" | "yes" | "no" | "on" | "off").!.map(Boolean).opaque("Boolean")
-  }
-  private val number: Parser[Number] = P {
-    ("-".? ~ numeric ~ P("." ~ digits).? ~ exponent.?).!.map(Number).opaque("Number")
-  }
-  private val timeUnit: Parser[TimeUnit] = P {
-    (numeric ~ spaces.rep ~ (timeUnitSuffix | timeUnitSuffixAbbr)).!.map(TimeUnit).opaque("TimeUnit")
-  }
-
-  private val quotedString: Parser[QuotedString] = P {
-    ("\"" ~/ quotedChar.rep ~ "\"").!.map(QuotedString).opaque("QuotedString")
-  }
-  private val unquotedString: Parser[UnquotedString] = P {
-    (unquotedChar | "/" ~ !"/").rep(min = 1).!.map(UnquotedString).opaque("UnquotedString")
-  }
-  private val rawString: Parser[MultilineString] = P {
-    ("\"\"\"" ~/ rawStringChar.rep ~ "\"".rep(min = 3)).!.map(MultilineString).opaque("MultilineString")
-  }
 
   // token compounds
 
@@ -108,11 +23,8 @@ object HoconParsers {
     nullPointerValue | boolean | timeUnit | number | stringOnlyValue
   }
 
-  private val fieldPathElement: Parser[String] = P {
-    (quotedString | unquotedString).map(_.value)
-  }
   private val fieldPathExpression: Parser[PathExpression] = P {
-    fieldPathElement.map(PathExpressionPart).rep(min = 1, sep = P(".")).map(PathExpression)
+    fieldPathElement.rep(min = 1, sep = P(".")).map(PathExpression)
   }
 
   private val substitutionOptional: Parser[SubstitutionWeak] = P {
@@ -135,6 +47,23 @@ object HoconParsers {
     (spaces.? ~ (substitutionOptional | substitution | objectValue)).rep.map(_.flatMap(s => s._1.toSeq :+ s._2))
   }
 
+  private val spacesSingleLine: Parser[SpacesSingleLine] = P {
+    (spaces.? ~ Index).map(s => SpacesSingleLine(s._1, s._2, None))
+  }
+  private val spacesSingleLineEnd: Parser[SpacesSingleLine] = P {
+    (spaces.? ~ Index ~ comment.?).map(SpacesSingleLine.tupled)
+  }
+  private val spacesSingleLineWithLineBreak: Parser[SpacesSingleLine] = P {
+    (spaces.? ~ Index ~ comment.? ~ "\n").map(SpacesSingleLine.tupled)
+  }
+
+  private val spacesMultiLine: Parser[SpacesMultiLine] = P {
+    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLine).map(s => SpacesMultiLine(s._1 :+ s._2))
+  }
+  private val spacesMultiLineEnd: Parser[SpacesMultiLine] = P {
+    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLineEnd).map(s => SpacesMultiLine(s._1 :+ s._2))
+  }
+
   private val listValues: Parser[Concat] = P {
     (listValue ~/ listRepetition).map(s => Concat(s._1 +: s._2, noString = true))
   }
@@ -146,23 +75,6 @@ object HoconParsers {
   }
   private val substitutions: Parser[Concat] = P {
     ((substitutionOptional | substitution) ~/ valueRepetition).map(s => Concat(s._1 +: s._2, noString = false))
-  }
-
-  private val urlInclusion: Parser[_] = P {
-    "url(" ~/ spaces.? ~ quotedString ~ spaces.? ~ ")"
-  }
-  private val fileInclusion: Parser[_] = P {
-    "file(" ~/ spaces.? ~ quotedString ~ spaces.? ~ ")"
-  }
-  private val classPathInclusion: Parser[_] = P {
-    "classpath(" ~/ spaces.? ~ quotedString ~ spaces.? ~ ")"
-  }
-
-  private val optionalInclusion: Parser[InclusionBodyPart] = P {
-    (urlInclusion | fileInclusion | classPathInclusion | quotedString).!.map(InclusionBodyPart)
-  }
-  private val requirementInclusion: Parser[InclusionBodyPart] = P {
-    ("required(" ~/ spaces.? ~ optionalInclusion ~ spaces.? ~ ")").!.map(InclusionBodyPart)
   }
 
   private val fieldObjectValue: Parser[(SepWithSpaces, Concat)] = P {
