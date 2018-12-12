@@ -2,17 +2,33 @@ package com.github.ustc_zzzz.hocon
 
 import fastparse.all._
 
-import scala.annotation.tailrec
-
-
 /**
   * @author ustc_zzzz
   */
 // noinspection ForwardReference
 object HoconParsers {
 
-  import com.github.ustc_zzzz.hocon.HoconTokens._
   import com.github.ustc_zzzz.hocon.HoconObjects._
+  import com.github.ustc_zzzz.hocon.HoconTokens._
+
+  // spaces
+
+  private val spacesSingleLine: Parser[SpacesSingleLine] = P {
+    (spaces.? ~ Index).map(s => SpacesSingleLine(s._1, s._2, None))
+  }
+  private val spacesSingleLineEnd: Parser[SpacesSingleLine] = P {
+    (spaces.? ~ Index ~ comment.?).map(SpacesSingleLine.tupled)
+  }
+  private val spacesSingleLineWithLineBreak: Parser[SpacesSingleLine] = P {
+    (spaces.? ~ Index ~ comment.? ~ "\n").map(SpacesSingleLine.tupled)
+  }
+
+  private val spacesMultiLine: Parser[SpacesMultiLine] = P {
+    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLine).map(s => SpacesMultiLine(s._1 :+ s._2))
+  }
+  private val spacesMultiLineEnd: Parser[SpacesMultiLine] = P {
+    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLineEnd).map(s => SpacesMultiLine(s._1 :+ s._2))
+  }
 
   // token compounds
 
@@ -45,23 +61,6 @@ object HoconParsers {
   }
   private val objectRepetition: Parser[Seq[Element]] = P {
     (spaces.? ~ (substitutionOptional | substitution | objectValue)).rep.map(_.flatMap(s => s._1.toSeq :+ s._2))
-  }
-
-  private val spacesSingleLine: Parser[SpacesSingleLine] = P {
-    (spaces.? ~ Index).map(s => SpacesSingleLine(s._1, s._2, None))
-  }
-  private val spacesSingleLineEnd: Parser[SpacesSingleLine] = P {
-    (spaces.? ~ Index ~ comment.?).map(SpacesSingleLine.tupled)
-  }
-  private val spacesSingleLineWithLineBreak: Parser[SpacesSingleLine] = P {
-    (spaces.? ~ Index ~ comment.? ~ "\n").map(SpacesSingleLine.tupled)
-  }
-
-  private val spacesMultiLine: Parser[SpacesMultiLine] = P {
-    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLine).map(s => SpacesMultiLine(s._1 :+ s._2))
-  }
-  private val spacesMultiLineEnd: Parser[SpacesMultiLine] = P {
-    (spacesSingleLineWithLineBreak.rep ~ spacesSingleLineEnd).map(s => SpacesMultiLine(s._1 :+ s._2))
   }
 
   private val listValues: Parser[Concat] = P {
@@ -98,20 +97,14 @@ object HoconParsers {
     substitutions | stringValues | listValues | objectValues
   }
   private val valueSeparator: Parser[SepWithSpaces] = P {
-    valueSeparatorRequired | spacesMultiLine.map(SepWithSpaces(_, None))
-  }
-  private val valueSeparatorLast: Parser[SepWithSpaces] = P {
-    valueSeparatorRequired | spacesMultiLine.map(SepWithSpaces(_, None))
-  }
-  private val valueSeparatorRequired: Parser[SepWithSpaces] = P {
-    (spacesMultiLine ~ ("," ~ spacesMultiLine).map(Some(Sep(","), _))).map(SepWithSpaces.tupled)
+    (spacesMultiLine ~ (",".!.map(Sep) ~ spacesMultiLine).?).map(SepWithSpaces.tupled)
   }
 
   private val moreFields: Parser[Seq[(ObjectElementPart, SepWithSpaces)]] = P {
-    ((inclusion | field) ~ (valueSeparator ~ moreFields | valueSeparatorLast.map((_, Nil)))).map(t => (t._1, t._2._1) +: t._2._2)
+    ((inclusion | field) ~ (valueSeparator ~ moreFields | valueSeparator.map((_, Nil)))).map(t => (t._1, t._2._1) +: t._2._2)
   }
   private val moreElements: Parser[Seq[(ListElementPart, SepWithSpaces)]] = P {
-    (values.map(ListElement) ~ (valueSeparator ~ moreElements | valueSeparatorLast.map((_, Nil)))).map(t => (t._1, t._2._1) +: t._2._2)
+    (values.map(ListElement) ~ (valueSeparator ~ moreElements | valueSeparator.map((_, Nil)))).map(t => (t._1, t._2._1) +: t._2._2)
   }
 
   private val rootObjectValue: Parser[RootObject] = P {
@@ -124,37 +117,35 @@ object HoconParsers {
     ("{" ~/ spacesMultiLine ~/ moreFields.?.map(_.getOrElse(Nil)) ~ "}").map(Object.tupled)
   }
 
-  @tailrec def printError(stack: IndexedSeq[fastparse.core.Frame], pointer: Int = 1): (Int, String) = {
+  @annotation.tailrec def printError(stack: IndexedSeq[fastparse.core.Frame], pointer: Int = 1): (Int, String) = {
     val fastparse.core.Frame(index, parser) = stack(stack.size - pointer)
     parser match {
-      case `root` =>
-        (index, "Invalid root object syntax. Expecting an object, a list, or a field")
-      case `inclusion` =>
-        (index, "Invalid include syntax")
-      case `field` =>
-        (index, "Invalid object field syntax")
-      case `fieldPathExpression` =>
-        (index, "Invalid path expression syntax. Expecting a path expression for field key")
-      case `fieldPathElement` =>
-        (index, "Invalid path expression syntax. Expecting a quoted or unquoted string for path expression")
-      case `listValue` =>
-        (index, "Invalid list syntax. Expecting list elements")
-      case `objectValue` =>
-        (index, "Invalid object syntax. Expecting object fields")
-      case `values` =>
-        (index, "Invalid value syntax. Expecting a substitution, a string, a list, or an object")
-      case `stringOnlyValue` =>
-        (index, "Invalid string syntax. Expecting a multiline string, a quoted string, or an unquoted string")
-      case `stringLikeValue` =>
-        (index, "Invalid primitive value syntax. Expecting a null, a boolean, a time unit, a number, or a string")
-      case `valueRepetition` =>
-        (index, "Invalid value concatenation syntax. Expecting a substitution, a string, a list, an object, or nothing")
-      case `stringRepetition` =>
-        (index, "Invalid string concatenation syntax. Expecting a substitution, or a string")
-      case `listRepetition` =>
-        (index, "Invalid list concatenation syntax. Expecting a substitution, or a list")
-      case `objectRepetition` =>
-        (index, "Invalid object concatenation syntax. Expecting a substitution, or an object")
+      case `root` => (index, "Invalid root object syntax. Expect an object, a list, or a field")
+      case `objectValue` => (index, "Invalid object syntax. An object should consist of fields surrounded by { and }")
+      case `listValue` => (index, "Invalid list syntax. A list should consist of values surrounded by [ and ]")
+      case `rootObjectValue` => (index, "Invalid root object syntax. Braces can only be omitted when it is a root object")
+      case `moreElements` => (index, "Invalid list part syntax. Expect a list element")
+      case `moreFields` => (index, "Invalid object part syntax. Expect an object field")
+      case `valueSeparator` => (index, "Invalid value separator syntax. Please insert a comma or just a line break")
+      case `values` => (index, "Invalid value syntax. Expect a substitution, a string, a list, or an object")
+      case `field` => (index, "Invalid object field syntax. Please ensure that every field path has a corresponding value")
+      case `inclusion` => (index, "Invalid inclusion syntax. Please check if the main part of inclusion is valid")
+      case `fieldValue` => (index, "Invalid object field syntax. Separators should be : or = for field value definition")
+      case `fieldAppendValue` => (index, "Invalid object field syntax. Separators should be += if it is wanted to append values")
+      case `fieldObjectValue` => (index, "Invalid object field syntax. Separators can only be omitted when the value is an object")
+      case `substitutions` => (index, "Invalid value concatenation syntax. Expect a substitution, a string, a list, or an object")
+      case `stringValues` => (index, "Invalid string concatenation syntax. Expect a substitution, or a string")
+      case `objectValues` => (index, "Invalid object concatenation syntax. Expect a substitution, or an object")
+      case `listValues` => (index, "Invalid list concatenation syntax. Expect a substitution, or a list")
+      case `objectRepetition` => (index, "Invalid object concatenation part syntax. Expect a substitution, or an object")
+      case `listRepetition` => (index, "Invalid list concatenation part syntax. Expect a substitution, or a list")
+      case `valueRepetition` => (index, "Invalid value concatenation part syntax. Expect a substitution, a string, a list, or an object")
+      case `stringRepetition` => (index, "Invalid string concatenation part syntax. Expect a substitution, or a string")
+      case `substitution` => (index, "Invalid substitution syntax. Expect a substitution in the form of ${<field path>}")
+      case `substitutionOptional` => (index, "Invalid substitution syntax. Expect a substitution in the form of ${?<field path>}")
+      case `fieldPathExpression` => (index, "Invalid path expression syntax. Expect a path expression for field key")
+      case `stringLikeValue` => (index, "Invalid primitive value syntax. Expect a null, a boolean, a time unit, a number, or a string")
+      case `stringOnlyValue` => (index, "Invalid string syntax. Expect a multiline string, a quoted string, or an unquoted string")
       case _ => printError(stack, pointer + 1)
     }
   }
