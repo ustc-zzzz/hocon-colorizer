@@ -1,6 +1,7 @@
 package com.github.ustc_zzzz.hocon
 
-import fastparse.all._
+import fastparse._
+import fastparse.NoWhitespace._
 
 /**
   * @author ustc_zzzz
@@ -11,93 +12,93 @@ object HoconTokens {
 
   // token parts
 
-  private val digits: Parser[_] = P(CharsWhileIn(strings = '0' to '9'))
+  private def digits[_: P]: P[_] = P(CharsWhileIn("0123456789"))
 
-  private val numeric: Parser[_] = P("0" | (CharIn(strings = '1' to '9') ~ digits.?))
+  private def numeric[_: P]: P[_] = P("0" | (CharIn("123456789") ~ digits.?))
 
-  private val exponent: Parser[_] = P(CharIn(strings = "eE") ~ CharIn(strings = "+-").? ~ digits)
+  private def exponent[_: P]: P[_] = P("e" | "e+" | "e-" | "E" | "E+" | "E-" ~ digits)
 
-  private val unicode: Parser[_] = P("u" ~ CharIn(strings = '0' to '9', 'a' to 'f', 'A' to 'F').rep(exactly = 4))
+  private def unicode[_: P]: P[_] = P("u" ~ CharIn("0123456789", "abcdef", "ABCDEF").rep(exactly = 4))
 
-  private val commentPart: Parser[_] = P(CharsWhile(_ != '\n', min = 0))
+  private def commentPart[_: P]: P[_] = P(CharsWhile(_ != '\n', 0))
 
-  private val spacesPart: Parser[_] = P(CharsWhile {
+  private def spacesPart[_: P]: P[_] = P(CharsWhile {
     case '\n' => false // special handling for line breaks
     case ' ' | '\t' | '\uFEFF' => true // common whitespaces and utf-8 bom
     case '\u00A0' | '\u2007' | '\u202F' => true // characters mentioned in the spec
     case character => character.isWhitespace // use java.lang.Character in other cases
   })
 
-  private val timeUnitSuffixAbbr: Parser[_] = P {
+  private def timeUnitSuffixAbbr[_: P]: P[_] = P {
     "ns" | "us" | "ms" | "s" | "m" | "h" | "d"
   }
-  private val timeUnitSuffix: Parser[_] = P {
+  private def timeUnitSuffix[_: P]: P[_] = P {
     ("nanosecond" | "microsecond" | "millisecond" | "second" | "minute" | "hour" | "day") ~ "s".?
   }
 
-  private val escapeChar: Parser[_] = P {
-    "\\" ~ (CharIn(Seq('\"', '\\', '/', 'b', 'f', 'n', 'r', 't')) | unicode)
+  private def escapeChar[_: P]: P[_] = P {
+    "\\" ~ (CharIn("\"\\/", "bfnrt") | unicode)
   }
-  private val quotedChar: Parser[_] = P {
+  private def quotedChar[_: P]: P[_] = P {
     CharsWhile(c => c != '\"' && c != '\\' && !c.isControl) | escapeChar
   }
-  private val unquotedChar: Parser[_] = P {
+  private def unquotedChar[_: P]: P[_] = P {
     CharsWhile(c => !c.isWhitespace && !"$\"{}[]:=,+#`^?!@*&\\/".contains(c))
   }
-  private val rawStringChar: Parser[_] = P {
-    CharsWhile(_ != '\"').~/ | "\"" ~ (CharsWhile(_ != '\"').~/ | "\"" ~ CharsWhile(_ != '\"').~/)
+  private def rawStringChar[_: P]: P[_] = P {
+    CharsWhile(_ != '\"')./ | "\"" ~ (CharsWhile(_ != '\"')./ | "\"" ~ CharsWhile(_ != '\"')./)
   }
 
-  private val urlInclusion: Parser[_] = P {
+  private def urlInclusion[_: P]: P[_] = P {
     "url(" ~/ spacesPart.? ~ "\"" ~ quotedChar.rep ~ "\"" ~ spacesPart.? ~ ")"
   }
-  private val fileInclusion: Parser[_] = P {
+  private def fileInclusion[_: P]: P[_] = P {
     "file(" ~/ spacesPart.? ~ "\"" ~ quotedChar.rep ~ "\"" ~ spacesPart.? ~ ")"
   }
-  private val classPathInclusion: Parser[_] = P {
+  private def classPathInclusion[_: P]: P[_] = P {
     "classpath(" ~/ spacesPart.? ~ "\"" ~ quotedChar.rep ~ "\"" ~ spacesPart.? ~ ")"
   }
 
   // tokens
 
-  val spaces: Parser[Spaces] = P {
+  def spaces[_: P]: P[Spaces] = P {
     (Index ~ spacesPart.! ~ Index).map(Spaces.tupled).opaque("Spaces")
   }
-  val comment: Parser[Comment] = P {
+  def comment[_: P]: P[Comment] = P {
     (("//" | "#").! ~ Index ~ spacesPart.?.! ~ Index ~ commentPart.!).map(Comment.tupled).opaque("Comment")
   }
 
-  val nullPointerValue: Parser[NullPointer] = P {
+  def nullPointerValue[_: P]: P[NullPointer] = P {
     "null".!.map(NullPointer).opaque("Null")
   }
-  val boolean: Parser[Boolean] = P {
+  def boolean[_: P]: P[Boolean] = P {
     ("true" | "false" | "yes" | "no" | "on" | "off").!.map(Boolean).opaque("Boolean")
   }
-  val number: Parser[Number] = P {
+  def number[_: P]: P[Number] = P {
     ("-".? ~ numeric ~ P("." ~ digits).? ~ exponent.?).!.map(Number).opaque("Number")
   }
-  val timeUnit: Parser[TimeUnit] = P {
+  def timeUnit[_: P]: P[TimeUnit] = P {
     (numeric ~ spacesPart.? ~ (timeUnitSuffix | timeUnitSuffixAbbr)).!.map(TimeUnit).opaque("TimeUnit")
   }
 
-  val quotedString: Parser[QuotedString] = P {
+  def quotedString[_: P]: P[QuotedString] = P {
     ("\"" ~/ quotedChar.rep ~ "\"").!.map(QuotedString).opaque("QuotedString")
   }
-  val unquotedString: Parser[UnquotedString] = P {
-    (unquotedChar | "/" ~ !"/").rep(min = 1).!.map(UnquotedString).opaque("UnquotedString")
+  def unquotedString[_: P]: P[UnquotedString] = P {
+    (unquotedChar | "/" ~ !"/").rep(1).!.map(UnquotedString).opaque("UnquotedString")
   }
-  val rawString: Parser[MultilineString] = P {
-    ("\"\"\"" ~/ rawStringChar.rep ~ "\"".rep(min = 3)).!.map(MultilineString).opaque("MultilineString")
+  def rawString[_: P]: P[MultilineString] = P {
+    ("\"\"\"" ~/ rawStringChar.rep ~ "\"".rep(3)).!.map(MultilineString).opaque("MultilineString")
   }
 
-  val fieldPathElement: Parser[PathExpressionPart] = P {
+  def fieldPathElement[_: P]: P[PathExpressionPart] = P {
     (quotedString | unquotedString).map(_.value).map(PathExpressionPart).opaque("PathExpression")
   }
 
-  val optionalInclusion: Parser[InclusionBodyPart] = P {
+  def optionalInclusion[_: P]: P[InclusionBodyPart] = P {
     (urlInclusion | fileInclusion | classPathInclusion | quotedString).!.map(InclusionBodyPart).opaque("Inclusion")
   }
-  val requirementInclusion: Parser[InclusionBodyPart] = P {
+  def requirementInclusion[_: P]: P[InclusionBodyPart] = P {
     ("required(" ~/ spacesPart.? ~ optionalInclusion ~ spacesPart.? ~ ")").!.map(InclusionBodyPart).opaque("Inclusion")
   }
 }

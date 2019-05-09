@@ -27,13 +27,13 @@ object HoconColorizer {
   }
 
   def validateTextDocument(connection: Dynamic, textDocument: Dynamic): Unit = {
-    import fastparse.core._
+    import fastparse._
     val uri = textDocument.uri
     val diagnostics = Array[Any]()
-    HoconParsers.root.parse(textDocument.getText().toString) match {
+    parse(textDocument.getText().toString, HoconParsers.root(_), verboseFailures = true) match {
       case Parsed.Success(value, _) => abstractSyntaxTrees.put(uri, value)
       case Parsed.Failure(_, index, extra) =>
-        val (startIndex, errorMessage) = HoconParsers.printError(extra.traced.stack.toIndexedSeq)
+        val (startIndex, errorMessage) = HoconParsers.printError(extra.stack.toIndexedSeq)
         val startPosition = textDocument.positionAt(startIndex)
         val endPosition = textDocument.positionAt(index)
         abstractSyntaxTrees.remove(uri)
