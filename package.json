@@ -2,7 +2,7 @@
     "name": "hocon-colorizer",
     "displayName": "HOCON Colorizer",
     "description": "Language Syntax Highlighting of HOCON",
-    "version": "0.2.6",
+    "version": "0.2.7",
     "publisher": "zzzz",
     "engines": {
         "vscode": "^1.0.0"

@@ -97,7 +97,7 @@
     },
     "inclusion": {
       "patterns": [{
-        "begin": "(?:^|\\s)(include\\s+required\\s*\\((?:url|file|classpath))\\s*\\(",
+        "begin": "(?<!\\S)(include\\s+required\\s*\\((?:url|file|classpath))\\s*\\(",
         "beginCaptures": {
           "1": {
             "name": "keyword.other.include.hocon"
@@ -108,7 +108,7 @@
           "include": "#string"
         }]
       }, {
-        "begin": "(?:^|\\s)(include\\s+(?:url|file|classpath|required))\\s*\\(",
+        "begin": "(?<!\\S)(include\\s+(?:url|file|classpath|required))\\s*\\(",
         "beginCaptures": {
           "1": {
             "name": "keyword.other.include.hocon"
@@ -119,7 +119,7 @@
           "include": "#string"
         }]
       }, {
-        "match": "(?:^|\\s)(include\\s+)(\\\"((\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4}))|[^\\\\\"])*?\\\")",
+        "match": "(?<!\\S)(include\\s+)(\\\"((\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4}))|[^\\\\\"])*?\\\")",
         "captures": {
           "1": {
             "name": "keyword.other.include.hocon"
@@ -143,7 +143,7 @@
       }]
     },
     "keyword": {
-      "match": "(?:^|\\s)(true|false|yes|no|on|off|null)(?=$|\\s)",
+      "match": "(?<![^\\s$\"{}\\[\\]:=,+#`^?!@*&])(true|false|yes|no|on|off|null)(?![^\\s$\"{}\\[\\]:=,+#`^?!@*&])",
       "captures": {
         "1": {
           "name": "keyword.other.boolean.hocon"
